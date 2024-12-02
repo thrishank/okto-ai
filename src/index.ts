@@ -12,7 +12,7 @@ const availableCommands = [
   { command: "logout", description: "Logout from your account" },
 ];
 
-// Set bot commands using Telegram Bot API
+ 
 bot.telegram.setMyCommands(availableCommands).then(() => {
   console.log("Commands set successfully");
 });
@@ -31,35 +31,47 @@ bot.command("help", async (ctx) => {
 // Middleware
 bot.use(async (ctx, next) => {
   console.log("User Info:", ctx.from);
-
   await next();
 })
+
 bot.use(async (ctx, next) => {
   if (authStore.isAuthenticated && ctx.message && "text" in ctx.message) {
     const usr_message = ctx.message.text
     console.log("Authenticated User Message:", usr_message);
 
-    const res = await fetch("https://b675-34-142-188-148.ngrok-free.app/predict", {
-      method: "POST",
+    // Send initial loading message
+    const loadingMessage = await ctx.reply("Processing your request... ⌛");
+
+    const res = await fetch("https://8956-35-194-192-100.ngrok-free.app/predict", {
+      method: "POST", 
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ input:  usr_message })
+      body: JSON.stringify({ input: usr_message })
     })
-
     const api_text = await res.json()
     const data = await categorizeText(api_text as string);
+
     if (data.user_provided_all) {
       const okto_res = data.body_is_there ? await api_request(data.url, authStore.tokens.auth_token!, data.request, data.body) : await api_request(data.url, authStore.tokens.auth_token!, data.request);
-      const message = await summarize(okto_res as JSON)
+      const message = await summarize(okto_res as JSON, usr_message, data)
+      
+      // Delete loading message and send response
+      if (ctx.chat?.id) {
+        await ctx.telegram.deleteMessage(ctx.chat.id, loadingMessage.message_id);
+      }
       await ctx.reply(message!);
+    } else if (!data.valid_info) {
+      await ctx.reply("I couldn't understand your request. Please try rephrasing it.");
+    } else if (!data.user_provided_all) {
+      await ctx.reply(`I need some additional information: ${data.missing_data}`);
+    } else {
+      await ctx.reply("Something went wrong. Please try again.");
     }
+
   }
   await next();
 });
-
-
-
 
 bot.command("start", async (ctx) => {
   if (authStore.isAuthenticated) {
@@ -88,6 +100,141 @@ const authStore = {
 // Conversation state management
 const userStates = new Map();
 
+bot.command("transfer", async (ctx) => {
+  if (!authStore.isAuthenticated) {
+    await ctx.reply("You need to be logged in to use this command. Please use /login.");
+    return;
+  }
+
+  const userId = ctx.from.id;
+
+  // Check if the user is already in a transfer process
+  const existingState = userStates.get(userId);
+  if (existingState) {
+    await ctx.reply("You are already in a process. Please complete it first or wait before trying again.");
+    return;
+  }
+
+  // Initialize the transfer state
+  userStates.set(userId, {
+    stage: 'network_name',
+    transferData: {},
+    attempts: 0,
+    startTime: Date.now(),
+  });
+
+  await ctx.reply("Let's start your transfer. Please enter the network name (e.g., POLYGON):");
+});
+
+bot.on("text", async (ctx) => {
+  const userId = ctx.from.id;
+  const userState = userStates.get(userId);
+
+  if (!userState || !authStore.isAuthenticated) return;
+
+  const TRANSFER_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+  if (Date.now() - userState.startTime > TRANSFER_TIMEOUT) {
+    userStates.delete(userId);
+    await ctx.reply("Transfer process timed out. Please start over with /transfer.");
+    return;
+  }
+
+  try {
+    const userInput = ctx.message.text.trim();
+    const transferData = userState.transferData;
+
+    switch (userState.stage) {
+      case "network_name":
+        if (!["POLYGON", "ETHEREUM", "BSC"].includes(userInput.toUpperCase())) {
+          await ctx.reply("Invalid network name. Please enter a valid network (e.g., POLYGON, ETHEREUM, BSC):");
+          return;
+        }
+        transferData.network_name = userInput.toUpperCase();
+        userState.stage = "token_address";
+        await ctx.reply("Enter the token address (leave empty for native tokens):");
+        break;
+
+      case "token_address":
+        transferData.token_address = userInput || "";
+        userState.stage = "quantity";
+        await ctx.reply("Enter the quantity to transfer:");
+        break;
+
+      case "quantity":
+        if (isNaN(parseFloat(userInput)) || parseFloat(userInput) <= 0) {
+          await ctx.reply("Invalid quantity. Please enter a valid number greater than 0:");
+          return;
+        }
+        transferData.quantity = userInput;
+        userState.stage = "recipient_address";
+        await ctx.reply("Enter the recipient's address:");
+        break;
+
+      case "recipient_address":
+        if (!/^0x[a-fA-F0-9]{40}$/.test(userInput)) {
+          await ctx.reply("Invalid address format. Please enter a valid Ethereum address:");
+          return;
+        }
+        transferData.recipient_address = userInput;
+
+        // Confirm the details
+        await ctx.reply(`Please confirm the transfer details:
+        - **Network:** ${transferData.network_name}
+        - **Token Address:** ${transferData.token_address || "Native Token"}
+        - **Quantity:** ${transferData.quantity}
+        - **Recipient Address:** ${transferData.recipient_address}
+        
+Type "CONFIRM" to proceed or "CANCEL" to abort.`);
+
+        userState.stage = "confirmation";
+        break;
+
+      case "confirmation":
+        if (userInput.toUpperCase() === "CANCEL") {
+          userStates.delete(userId);
+          await ctx.reply("Transfer process has been canceled.");
+        } else if (userInput.toUpperCase() === "CONFIRM") {
+          // Execute transfer
+          await ctx.reply("Processing your transfer... ⌛");
+
+          try {
+            const { statusCode, body } = await request(
+              "https://sandbox-api.okto.tech/api/v1/transfer/tokens/execute",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${authStore.tokens.auth_token}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(transferData),
+              }
+            );
+
+            const response = await body.json();
+
+            if (statusCode === 200) {
+              await ctx.reply(`✅ Transfer successful! Transaction I `);
+            } else {
+              await ctx.reply(`❌ Transfer failed. Error:  || "Unknown error"}`);
+            }
+          } catch (error) {
+            console.error("Transfer API Error:", error);
+            await ctx.reply("❌ An error occurred while processing your transfer. Please try again.");
+          }
+
+          userStates.delete(userId);
+        } else {
+          await ctx.reply('Please type "CONFIRM" to proceed or "CANCEL" to abort:');
+        }
+        break;
+    }
+  } catch (error) {
+    console.error("Transfer Process Error:", error);
+    userStates.delete(userId);
+    await ctx.reply("An error occurred. Please try again or start over with /transfer.");
+  }
+})
+
 bot.command("login", async (ctx) => {
 
   const userId = ctx.from.id;
@@ -112,7 +259,7 @@ bot.command("login", async (ctx) => {
     startTime: Date.now()
   });
 
-  // Prompt for email
+ 
   await ctx.reply("Please enter your email address to begin login:");
 });
 
@@ -133,7 +280,7 @@ bot.command("logout", async (ctx) => {
       step: 'start'
     };
 
-    // Clear any ongoing login states
+    
     userStates.delete(userId);
 
     await ctx.reply("You have been logged out successfully.");
@@ -220,7 +367,7 @@ bot.on('text', async (ctx) => {
         );
 
         if (verifyResponse.status === 'success') {
-          // Store auth tokens
+     
           authStore.tokens = {
             auth_token: verifyResponse.data.auth_token,
             refresh_token: verifyResponse.data.refresh_auth_token,

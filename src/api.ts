@@ -28,7 +28,8 @@ export default async function api_request(url: string, token: string, method: st
     }
     try {
         const response = await request(api_url, req_data);
-        const data = await response.body.json()
+        const data = await response.body.json();
+        console.log(body);
         console.log(data);
         return data;
         
