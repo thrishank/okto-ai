@@ -1,6 +1,9 @@
 Hey the demo video is https://www.loom.com/share/46fe4aa567bf4c56a199f5deafb0a079?sid=c76f0359-7390-44d5-86b4-3deae03ee588
 i couldn't submit as the time went
 
+# OKTO_AI_AGENT
+  1. A telegram bot 
+
 all the apis in OpenAPI spec of the can be interacated with model
 for transfer function the mode is halucinatiang a lot so you might get problems there 
 
