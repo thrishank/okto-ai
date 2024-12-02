@@ -2,13 +2,9 @@ import { Telegraf, Markup } from "telegraf";
 import { request } from "undici";
 import {categorizeText, summarize} from "./ai";
 import api_request from "./api";
-// Initialize Telegraf bot
-const BOT_TOKEN = "7887692704:AAE9g8oEGMB-REyHu7ZITvzrVLOG10f11Mc";
+import { BOT_TOKEN, OKTO_API_KEY } from "./data";
+
 const bot = new Telegraf(BOT_TOKEN);
-
-// API Keys and Constants
-const OKTO_API_KEY = "ee945375-6405-4dbc-9771-884a46528d3c";
-
 
 const availableCommands = [
   { command: "help", description: "List of commands" },
@@ -59,8 +55,6 @@ bot.use(async (ctx, next) => {
       await ctx.reply(message!);
     }
   }
-
-  // Call the next middleware/handler in the chain
   await next();
 });
 
@@ -251,8 +245,6 @@ bot.on('text', async (ctx) => {
 });
 
 
-
-
 bot.catch((err) => {
   console.error('Bot error:', err);
 });
@@ -302,6 +294,3 @@ async function verify_login_otp(otp: string, token: string, email: string): Prom
   console.log(data);
   return data;
 }
-
-
-const OPENAI_API_KEY = "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"

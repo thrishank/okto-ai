@@ -3,14 +3,8 @@
 		"start": "pnpm tsc && node dist/index.js"
 	},
 	"dependencies": {
-		"@langchain/openai": "^0.3.14",
-		"body-parser": "^1.20.3",
-		"express": "^4.21.1",
-		"js-yaml": "^4.1.0",
-		"langchain": "^0.3.6",
 		"openai": "^4.73.1",
 		"telegraf": "^4.16.3",
-		"type-fest": "^4.29.0",
 		"undici": "^7.0.0"
 	},
 	"devDependencies": {

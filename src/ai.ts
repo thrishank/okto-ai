@@ -1,9 +1,8 @@
 import OpenAI from "openai";
-
-const OPENAI_API_KEY = "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"
+import { OPENAI_API_KEY } from "./data";
 
 const openai = new OpenAI({
-  apiKey: `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`
+  apiKey: OPENAI_API_KEY
 });
 
 export async function categorizeText(inputText: string) {

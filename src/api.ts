@@ -2,7 +2,6 @@ import { request } from "undici";
 
 export default async function api_request(url: string, token: string, method: string, body?: string) {
     const api_url = `https://sandbox-api.okto.tech/${url}`;
-    const OKTO_API_KEY = "ee945375-6405-4dbc-9771-884a46528d3c";
     let req_data;
     if (body) {
         req_data = {
