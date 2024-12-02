@@ -1,0 +1,23 @@
+{
+	"scripts": {
+		"start": "pnpm tsc && node dist/index.js"
+	},
+	"dependencies": {
+		"@langchain/openai": "^0.3.14",
+		"body-parser": "^1.20.3",
+		"express": "^4.21.1",
+		"js-yaml": "^4.1.0",
+		"langchain": "^0.3.6",
+		"openai": "^4.73.1",
+		"telegraf": "^4.16.3",
+		"type-fest": "^4.29.0",
+		"undici": "^7.0.0"
+	},
+	"devDependencies": {
+		"@types/body-parser": "^1.19.5",
+		"@types/express": "^5.0.0",
+		"@types/js-yaml": "^4.0.9",
+		"typescript": "^5.7.2"
+	},
+	"packageManager": "pnpm@9.14.4+sha512.c8180b3fbe4e4bca02c94234717896b5529740a6cbadf19fa78254270403ea2f27d4e1d46a08a0f56c89b63dc8ebfd3ee53326da720273794e6200fcf0d184ab"
+}
